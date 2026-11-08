@@ -8,6 +8,7 @@ import {
   MoveGroupFileInput,
   RenameGroupFileInput,
   DeleteGroupFileInput,
+  PersistGroupFileInput,
   CreateGroupFolderInput,
   CreateGroupFolderOutput,
   RenameGroupFolderInput,
@@ -68,10 +69,16 @@ const GetPrivateFileDownloadUrl = defineApi(
   GetPrivateFileDownloadUrlInput,
   GetPrivateFileDownloadUrlOutput,
   async (ctx, payload) => {
-    const { state, url } = await ctx.pmhq.getPrivateFileUrl(
-      selfInfo.uid,
-      payload.file_id
-    )
+    let uid: string
+    if (payload.is_self_send) {
+      uid = await ctx.ntUserApi.getUidByUin(payload.user_id.toString())
+      if (!uid) {
+        return Failed(-404, 'User not found')
+      }
+    } else {
+      uid = selfInfo.uid
+    }
+    const { state, url } = await ctx.pmhq.getPrivateFileUrl(uid, payload.file_id)
     if (state !== 'ok') {
       return Failed(-500, state)
     }
@@ -179,6 +186,22 @@ const DeleteGroupFile = defineApi(
   }
 )
 
+const PersistGroupFile = defineApi(
+  'persist_group_file',
+  PersistGroupFileInput,
+  z.object({}),
+  async (ctx, payload) => {
+    const result = await ctx.ntGroupApi.setGroupFileForever(
+      payload.group_id.toString(),
+      payload.file_id
+    )
+    if (result.transGroupFileResult.result.retCode !== 0) {
+      return Failed(-500, result.transGroupFileResult.result.clientWording)
+    }
+    return Ok({})
+  }
+)
+
 const CreateGroupFolder = defineApi(
   'create_group_folder',
   CreateGroupFolderInput,
@@ -237,6 +260,7 @@ export const FileApi: MilkyApiHandler[] = [
   MoveGroupFile,
   RenameGroupFile,
   DeleteGroupFile,
+  PersistGroupFile,
   CreateGroupFolder,
   RenameGroupFolder,
   DeleteGroupFolder,
