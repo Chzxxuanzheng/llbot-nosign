@@ -1,5 +1,5 @@
 import { MilkyEventTypes } from '@/milky/common/event'
-import { RawMessage, GroupNotify, FriendRequest, GroupNotifyType, GroupNotifyStatus } from '@/ntqqapi/types'
+import { RawMessage, GroupNotify, FriendRequest, GroupNotifyType, GroupNotifyStatus, GroupDetailInfo } from '@/ntqqapi/types'
 import { transformIncomingPrivateMessage, transformIncomingGroupMessage, transformIncomingTempMessage } from './message/incoming'
 import { Context } from 'cordis'
 import { selfInfo } from '@/common/globalVars'
@@ -373,6 +373,25 @@ export async function transformGroupMessageEvent(
     return null
   } catch (error) {
     ctx.logger.error('Failed to transform group message event:', error)
+    return null
+  }
+}
+
+/**
+ * Transform NTQQ group dismiss event to Milky group_disband event
+ * 群解散通知中拿不到真实操作者，operator_id 使用群主 uid 对应的 uin 顶替
+ */
+export async function transformGroupDisbandEvent(
+  ctx: Context,
+  group: GroupDetailInfo
+): Promise<MilkyEventTypes['group_disband'] | null> {
+  try {
+    return {
+      group_id: Number(group.groupCode),
+      operator_id: Number(await ctx.ntUserApi.getUinByUid(group.ownerUid))
+    }
+  } catch (error) {
+    ctx.logger.error('Failed to transform group disband event:', error)
     return null
   }
 }

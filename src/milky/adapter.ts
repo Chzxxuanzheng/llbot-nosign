@@ -19,6 +19,7 @@ import {
   transformFriendRequestEvent,
   transformSystemMessageEvent,
   transformGroupMessageEvent,
+  transformGroupDisbandEvent,
   transformPrivateMessageEvent,
   transformOlpushEvent,
   transformTempMessageCreated,
@@ -217,6 +218,13 @@ export class MilkyAdapter extends Service {
       const result = await transformSystemMessageEvent(this.ctx, data)
       if (result) {
         this.emitEvent(result.eventType, result.data)
+      }
+    })
+
+    this.ctx.on('nt/group-dismiss', async (group) => {
+      const eventData = await transformGroupDisbandEvent(this.ctx, group)
+      if (eventData) {
+        this.emitEvent('group_disband', eventData)
       }
     })
 

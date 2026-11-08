@@ -163,6 +163,7 @@ class ForwardMessageEncoder {
   news: { text: string }[]
   name?: string
   uin?: number
+  private curTime?: number
   innerRaws: Awaited<ReturnType<ForwardMessageEncoder['generate']>>[] = []
 
   constructor(private ctx: Context, private peerUid: string, private isGroup: boolean) {
@@ -200,7 +201,7 @@ class ForwardMessageEncoder {
         msgType: this.isGroup ? 82 : 9,
         random: Math.floor(Math.random() * 4294967290),
         msgSeq: this.seq,
-        msgTime: Math.trunc(Date.now() / 1000),
+        msgTime: this.curTime ?? Math.trunc(Date.now() / 1000),
         pkgNum: 1,
         pkgIndex: 0,
         divSeq: 0,
@@ -287,6 +288,7 @@ class ForwardMessageEncoder {
   async visit(content: OutgoingForwardedMessage) {
     this.uin = content.user_id
     this.name = content.sender_name
+    this.curTime = content.time ?? undefined
     for (const segment of content.segments) {
       const { type, data } = segment
       if (type === 'text') {
