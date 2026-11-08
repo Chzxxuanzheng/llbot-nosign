@@ -1,86 +1,124 @@
-name: Build and Push LLOneBot Docker Image
+name: Build, Push and Release
 
+# 本分支（PMHQ 7.3.2 专用、无签名）只保留 Docker 镜像发布与 GitHub Release。
+# 镜像地址：ghcr.io/<owner>/<repo>（全部小写）
+# 与上游完全解耦：镜像从本仓库源码构建（docker/Dockerfile.local），
+# 不下载任何上游 Release 资产，也不使用任何上游仓库的 secret。
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version tag for the Docker image'
-        required: false
-        type: string
+
+permissions:
+  contents: write   # 创建 GitHub Release
+  packages: write   # 推送镜像到 ghcr.io
+
+env:
+  REGISTRY: ghcr.io
 
 jobs:
   build-and-push:
+    name: Build and push to ghcr.io
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history and tags
+          fetch-depth: 0
+
+      # ghcr.io 要求镜像名全小写，而 ${{ github.repository }} 可能含大写，
+      # metadata-action 不会自动转小写，因此在这里显式计算。
+      - name: Compute lowercase image name
+        id: image
+        run: |
+          echo "name=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Docker Hub
+      - name: Log in to ghcr.io
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Determine version
-        id: version
+      # 标签规则：
+      #   tag 推送   -> v7.13.0-nosign  +  latest（本分支视 -nosign 版本为正式发行版）
+      #   手动触发   -> 短 sha（无 tag，避免把不可复现的手动构建覆盖 latest）
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
+            type=sha,prefix=,format=short,enable=${{ github.event_name == 'workflow_dispatch' }}
+          labels: |
+            org.opencontainers.image.title=LuckyLilliaBot
+            org.opencontainers.image.description=LLBot (PMHQ 7.3.2, unsigned build)
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      # 必须使用 Dockerfile.local：docker/Dockerfile 依赖上游 GitHub Release 的
+      # LLBot.zip，本分支版本不存在于上游发布中。
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.local
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 生成 Release 说明：镜像拉取方式 + 更新日志首段
+      - name: Compose release notes
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            # Extract version from release tag (remove 'v' prefix if present)
-            version="${{ github.event.release.tag_name }}"
-            version=${version#v}
-            echo "Version from release: $version"
+          changelog="$(awk 'BEGIN{RS="=================";ORS=""} NR==1{print}' doc/更新日志.txt | tail -n +3)"
+          changelog="$(printf '%s' "$changelog" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          {
+            echo "### Docker 镜像"
+            echo ""
+            echo '```'
+            echo "docker pull ${{ steps.image.outputs.name }}:${GITHUB_REF_NAME}"
+            echo "docker pull ${{ steps.image.outputs.name }}:latest"
+            echo '```'
+            echo ""
+            echo "支持架构：\`linux/amd64\`、\`linux/arm64\`"
+            echo ""
+            echo "> 本镜像为 PMHQ 7.3.2 专用的无签名构建，仅从本仓库源码编译，不依赖任何上游制品。"
+            echo ""
+            echo "### 更新日志"
+            echo ""
+            printf '%s\n' "$changelog"
+          } > release-notes.md
+          cat release-notes.md
+
+      # 用内置 GITHUB_TOKEN 创建 Release，不使用任何额外或上游 secret。
+      # 已存在同名 Release 时改为更新，便于重跑。
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" \
+              --title "LuckyLilliaBot $GITHUB_REF_NAME" \
+              --notes-file release-notes.md \
+              --latest
           else
-            # Manual trigger - check if version is provided
-            input_version="${{ github.event.inputs.version }}"
-            if [ -n "$input_version" ] && [ "$input_version" != "" ]; then
-              # Use provided version
-              version="$input_version"
-              echo "Version from manual input: $version"
-            else
-              # Get latest tag if no version provided
-              latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-              if [ -n "$latest_tag" ]; then
-                version=${latest_tag#v}
-                echo "Version from latest tag: $version (tag: $latest_tag)"
-              else
-                # Fallback to default if no tags exist
-                version="5.8.0"
-                echo "No tags found, using fallback version: $version"
-              fi
-            fi
+            gh release create "$GITHUB_REF_NAME" \
+              --title "LuckyLilliaBot $GITHUB_REF_NAME" \
+              --notes-file release-notes.md \
+              --verify-tag \
+              --latest
           fi
-          echo "version=$version" >> $GITHUB_OUTPUT
-
-      - name: Build and push LLBot Docker image
-        run: |
-          version="${{ steps.version.outputs.version }}"
-          username="${{ secrets.DOCKER_USERNAME }}"
-          echo "Building LLBot with version: $version"
-          docker buildx build \
-            --progress=plain \
-            --build-arg LLBOT_VERSION="$version" \
-            --platform linux/amd64,linux/arm64 \
-            -t "$username/llbot:$version" \
-            -t "$username/llbot:latest" \
-            -t "$username/llonebot:$version" \
-            -t "$username/llonebot:latest" \
-            -f docker/Dockerfile \
-            --push \
-            .
-
-      - name: Output build summary
-        run: |
-          echo "✅ Successfully built and pushed LLBot Docker image"
-          echo "📦 Image tags:"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/llbot:${{ steps.version.outputs.version }}"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/llbot:latest"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/llonebot:${{ steps.version.outputs.version }}"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/llonebot:latest"

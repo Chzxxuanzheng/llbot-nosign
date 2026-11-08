@@ -2,21 +2,28 @@ FROM node:24-alpine3.23 AS builder
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare yarn@4.12.0 --activate
+# Corepack 会自动读取 package.json 的 packageManager 字段（yarn@4.14.1），
+# 因此不再写死版本，避免与 packageManager 不一致导致 --immutable 失败。
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
 
+# 注意：.yarn/ 未纳入版本控制（见 .gitignore），CI 的全新 checkout 中不存在，
+# 因此不能 COPY .yarn，否则会因源路径缺失导致构建失败。
 COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn .yarn
 
-RUN yarn install --immutable
+# --mode=skip-build 跳过 postinstall（postinstall 会 npm install WebUI 前端，
+# 此时 src/webui/FE 尚未复制进镜像，直接执行会失败）。前端依赖在下一步单独安装。
+RUN yarn install --immutable --mode=skip-build
 
 COPY src/webui/FE/package.json src/webui/FE/
 RUN cd src/webui/FE && npm install
 
 COPY . .
 
-RUN yarn build-webui
-
+# 先构建主程序再构建 WebUI：主构建的 outDir 为 dist/，会清空该目录，
+# 若顺序颠倒会把已经输出到 dist/webui 的前端产物删除。
 RUN yarn build
+RUN yarn build-webui
 
 
 FROM node:24-alpine3.23 AS production

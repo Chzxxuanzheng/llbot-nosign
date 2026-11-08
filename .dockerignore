@@ -1,3 +1,7 @@
 *.md
 .git
+node_modules
+dist
+.yarn/install-state.gz
 src/webui/FE/node_modules
+src/webui/FE/dist
