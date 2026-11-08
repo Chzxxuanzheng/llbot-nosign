@@ -561,15 +561,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@saltify/milky-types@npm:^1.2.2":
-  version: 1.2.2
-  resolution: "@saltify/milky-types@npm:1.2.2"
-  dependencies:
-    zod: "npm:^4.3.6"
-  checksum: 10c0/771708f99e4690d18f282b5de099199dba89800e5a2f971cf7d40d92b34f026e209a7cd16166e5b4308d6bd5646b96447d8ebf04c30fedc1e1bdcb4ef25c5447
-  languageName: node
-  linkType: hard
-
 "@saltify/typeproto@npm:^0.4.1":
   version: 0.4.1
   resolution: "@saltify/typeproto@npm:0.4.1"
@@ -1511,7 +1502,6 @@ __metadata:
     "@cordisjs/plugin-timer": "npm:^1.1.1"
     "@hono/node-server": "npm:^2.0.2"
     "@minatojs/driver-sqlite": "npm:^5.0.3"
-    "@saltify/milky-types": "npm:^1.2.2"
     "@saltify/typeproto": "npm:^0.4.1"
     "@satorijs/element": "npm:^3.2.0"
     "@satorijs/protocol": "npm:^1.7.0"
