@@ -1,25 +1,7 @@
-# LLBot
-![Node.js Version](https://img.shields.io/badge/node-%3E=24.x-brightgreen)
+# LLBot Nosign
 
-<div align="center">
-  <img src="./logo.jpg" width="200" alt="Logo" />
-  <p><strong>Lucky Lillia Bot</strong></p>
-  <p>OneBot 11, Satori, Milky Server</p>
-</div>
+基于7.12.15改了的自用版本。pmhq锁7.3.2。
 
-## Document
-<https://luckylillia.com>
+AI糊的，不保证可用性，和封号可能。
 
-## References
-
-[LagrangeV2](https://github.com/LagrangeDev/LagrangeV2)
-
-## Stargazers over time
-
-[![Stargazers over time](https://starchart.cc/LLOneBot/LuckyLilliaBot.svg?variant=adaptive)](https://starchart.cc/LLOneBot/LuckyLilliaBot)
-
-TG Group：<https://t.me/luckylillia>
-
-QQ Group：[545402644](https://qm.qq.com/q/3k5fzILp7y)
-
-
+主要用于同步新版本的协议层的适配和Bug，不解决对接qq的问题和封号问题。
