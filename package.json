@@ -23,7 +23,6 @@
     "@cordisjs/plugin-timer": "^1.1.1",
     "@hono/node-server": "^2.0.2",
     "@minatojs/driver-sqlite": "^5.0.3",
-    "@saltify/milky-types": "^1.2.2",
     "@saltify/typeproto": "^0.4.1",
     "@satorijs/element": "^3.2.0",
     "@satorijs/protocol": "^1.7.0",

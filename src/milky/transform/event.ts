@@ -4,7 +4,7 @@ import { transformIncomingPrivateMessage, transformIncomingGroupMessage, transfo
 import { Context } from 'cordis'
 import { selfInfo } from '@/common/globalVars'
 import { Msg, Notify } from '@/ntqqapi/proto'
-import { Event } from '@saltify/milky-types'
+import { Event } from '../generated/schema'
 
 /**
  * Transform NTQQ message-created event to Milky message_receive event (private)

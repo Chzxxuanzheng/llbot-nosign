@@ -1,6 +1,6 @@
 import { resolveMilkyUri } from '@/milky/common/download'
 import type { Context } from 'cordis'
-import { OutgoingForwardedMessage, OutgoingSegment } from '@saltify/milky-types'
+import { OutgoingForwardedMessage, OutgoingSegment } from '../../generated/schema'
 import { AtType, Peer, RichMediaUploadCompleteNotify, RMBizType, SendMessageElement } from '@/ntqqapi/types'
 import { SendElement } from '@/ntqqapi/entities'
 import { selfInfo, TEMP_DIR } from '@/common/globalVars'
