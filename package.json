@@ -6,7 +6,8 @@
   "main": "dist/llbot.js",
   "scripts": {
     "dev": "tsx src/main/main.ts",
-    "build": "vite build",
+    "build": "yarn build:main && yarn build-webui",
+    "build:main": "vite build",
     "dev-webui": "npm --prefix src/webui/FE run dev",
     "build-webui": "npm --prefix src/webui/FE run build",
     "postinstall": "npm --prefix src/webui/FE install",
