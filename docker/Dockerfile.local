@@ -2,10 +2,10 @@ FROM node:24-alpine3.23 AS builder
 
 WORKDIR /app
 
-# Corepack 会自动读取 package.json 的 packageManager 字段（yarn@4.14.1），
-# 因此不再写死版本，避免与 packageManager 不一致导致 --immutable 失败。
+# yarn 版本必须与 package.json 的 packageManager 字段严格一致（yarn@4.14.1），
+# 否则 --immutable 会因 yarn 版本不匹配或 lockfile 校验失败而中断。
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-RUN corepack enable
+RUN corepack enable && corepack prepare yarn@4.14.1 --activate && yarn --version
 
 # 注意：.yarn/ 未纳入版本控制（见 .gitignore），CI 的全新 checkout 中不存在，
 # 因此不能 COPY .yarn，否则会因源路径缺失导致构建失败。
@@ -20,10 +20,10 @@ RUN cd src/webui/FE && npm install
 
 COPY . .
 
-# 先构建主程序再构建 WebUI：主构建的 outDir 为 dist/，会清空该目录，
-# 若顺序颠倒会把已经输出到 dist/webui 的前端产物删除。
-RUN yarn build
-RUN yarn build-webui
+# yarn build = build:main（vite，outDir=dist/，会清空 dist）+ build-webui，
+# 顺序已固化在 package.json 中：主程序先构建，前端产物随后写入 dist/webui，
+# 因此最终 dist/ 同时包含 llbot.js 与 webui/index.html。
+RUN yarn build && ls -la dist dist/webui
 
 
 FROM node:24-alpine3.23 AS production
